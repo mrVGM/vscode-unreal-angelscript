@@ -21,7 +21,7 @@ import {
     TypeHierarchySupertypesParams, TypeHierarchySubtypesParams,
     WorkspaceSymbol, DocumentSymbol,
     InlayHint, InlayHintParams,
-    InlineValue, InlineValueParams,
+    InlineValue, InlineValueParams, StreamMessageReader, StreamMessageWriter,
 } from 'vscode-languageserver/node';
 import { TextDocument, TextDocumentContentChangeEvent } from 'vscode-languageserver-textdocument';
 
@@ -54,7 +54,7 @@ import {
 } from './unreal-buffers';
 
 // Create a connection for the server. The connection uses Node's IPC as a transport
-let connection: Connection = createConnection(new IPCMessageReader(process), new IPCMessageWriter(process));
+let connection: Connection = createConnection(new StreamMessageReader(process.stdin), new StreamMessageWriter(process.stdout));
 
 // Create a connection to unreal
 let unreal : Socket;
@@ -988,8 +988,8 @@ function getModuleName(uri : string) : string
 
     // This assumes all relative paths are globally unique.
     for (let rootUri of RootUris) {
-        if (modulename.startsWith(rootUri)) {
-            modulename = modulename.replace(rootUri, "");
+        if (modulename.toLocaleLowerCase().startsWith(rootUri.toLocaleLowerCase())) {
+            modulename = modulename.substring(rootUri.length);
             break;
         }
     }
