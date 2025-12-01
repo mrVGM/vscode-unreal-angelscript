@@ -11,7 +11,7 @@ export let SemanticTypeList : Array<string> = [
     "typename", "typename_actor", "typename_component", "typename_struct", "typename_event",
     "typename_delegate", "typename_primitive", "unimported_symbol", "access_specifier",
 
-    "string_literal", "number_literal", "keyword",
+    "string_literal", "number_literal", "keyword", "comment"
 ];
 
 for (let i = 0, Count = SemanticTypeList.length; i < Count; ++i)
@@ -70,7 +70,11 @@ export function HighlightSymbolsDelta(asmodule : scriptfiles.ASModule, previousI
 
 function BuildSymbols(asmodule : scriptfiles.ASModule, builder : SemanticTokensBuilder)
 {
-    for (let symbol of asmodule.semanticSymbols)
+    let tmp: Array<scriptfiles.ASSemanticSymbol> =
+        asmodule.semanticSymbols.concat(asmodule.commentSymbols);
+    tmp = tmp.sort((a,b) => a.start - b.start);
+
+    for (let symbol of tmp)
     {
         if (symbol.noColor)
             continue;
@@ -183,6 +187,9 @@ function BuildSymbols(asmodule : scriptfiles.ASModule, builder : SemanticTokensB
             break;
             case scriptfiles.ASSymbolType.KeywordSymbol:
                 type = SemanticTypes.keyword;
+            break;
+            case scriptfiles.ASSymbolType.Comment:
+                type = SemanticTypes.comment;
             break;
         }
 

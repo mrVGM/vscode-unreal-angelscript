@@ -92,6 +92,7 @@ export class ASModule
     types : Array<typedb.DBType> = [];
     globalSymbols : Array<typedb.DBSymbol> = [];
     semanticSymbols : Array<ASSemanticSymbol> = [];
+    commentSymbols: Array<ASSemanticSymbol> = [];
     literalAssets : Array<ASLiteralAsset> = [];
 
     importedModules : Array<ASModule> = [];
@@ -411,6 +412,7 @@ export enum ASSymbolType
     StringSymbol,
     NumberSymbol,
     KeywordSymbol,
+    Comment,
 
     UnknownError,
     NoSymbol,
@@ -810,6 +812,7 @@ export function ParseModule(module : ASModule, debug : boolean = false)
     module.rootscope.start_offset = 0;
     module.rootscope.end_offset = module.textDocument.getText().length;
 
+    module.commentSymbols = [];
     // Parse content of file into distinct statements
     ParseScopeIntoStatements(module.rootscope);
 
@@ -2745,6 +2748,18 @@ function AddKeywordSymbol(scope : ASScope, statement: ASStatement, start: intege
     symbol.isWriteAccess = null;
 
     scope.module.semanticSymbols.push(symbol);
+    return symbol;
+}
+
+function AddCommentSymbol(module : ASModule, start: integer, end: integer) : ASSemanticSymbol {
+    let symbol = new ASSemanticSymbol;
+    symbol.type = ASSymbolType.Comment;
+    symbol.start = start;
+    symbol.end = end;
+    symbol.symbol_name = null;
+    symbol.isWriteAccess = null;
+
+    module.commentSymbols.push(symbol);
     return symbol;
 }
 
@@ -6003,6 +6018,9 @@ function ParseScopeIntoStatements(scope : ASScope)
     let in_sq_string = false;
     let in_escape_sequence = false;
 
+    let line_comment_start = -1;
+    let block_comment_start = -1;
+
     let cur_element : ASElement = null;
     function finishElement(element : ASElement)
     {
@@ -6052,8 +6070,13 @@ function ParseScopeIntoStatements(scope : ASScope)
             if (in_preprocessor_directive)
                 in_preprocessor_directive = false;
 
-            if (in_line_comment)
+            if (in_line_comment) {
                 in_line_comment = false;
+                if (line_comment_start >= 0) {
+                    AddCommentSymbol(module, line_comment_start, cur_offset);
+                }
+                line_comment_start = -1;
+            }
 
             continue;
         }
@@ -6066,6 +6089,8 @@ function ParseScopeIntoStatements(scope : ASScope)
             if (curchar == '/' && scope.module.content[cur_offset-1] == '*')
             {
                 in_block_comment = false;
+                AddCommentSymbol(module, block_comment_start, cur_offset);
+                block_comment_start = -1;
             }
             continue;
         }
@@ -6118,12 +6143,14 @@ function ParseScopeIntoStatements(scope : ASScope)
         if (curchar == '/' && cur_offset+1 < scope.end_offset && scope.module.content[cur_offset+1] == '/')
         {
             in_line_comment = true;
+            line_comment_start = cur_offset;
             continue;
         }
 
         if (curchar == '/' && cur_offset+1 < scope.end_offset && scope.module.content[cur_offset+1] == '*')
         {
             in_block_comment = true;
+            block_comment_start = cur_offset;
             continue;
         }
 
@@ -6382,7 +6409,7 @@ function ParseAllStatements(scope : ASScope, debug : boolean = false)
 
         if (trySplit)
         {
-            let splitContent = SplitStatementBasedOnEdit(statement.content, scope.module.lastEditStart - statement.start_offset, allowNoSplit);
+            let splitContent = SplitStatementBasedOnEdit(statement, scope.module.lastEditStart - statement.start_offset, allowNoSplit);
             if (splitContent && splitContent.length != 0)
             {
                 let orig_start = statement.start_offset;
@@ -6453,8 +6480,9 @@ function ParseAllStatements(scope : ASScope, debug : boolean = false)
         ParseAllStatements(subscope, debug)
 }
 
-function SplitStatementBasedOnEdit(content : string, editOffset : number, allowNoSplit : boolean) : Array<string>
+function SplitStatementBasedOnEdit(statement: ASStatement, editOffset : number, allowNoSplit : boolean) : Array<string>
 {
+    let content = statement.content;
     // Find the first linebreak after the edit position that completes all brackets before the edit position
     let length = content.length;
 
