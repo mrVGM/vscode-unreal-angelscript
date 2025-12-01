@@ -408,6 +408,8 @@ export enum ASSymbolType
 
     AccessSpecifier,
 
+    StringSymbol,
+
     UnknownError,
     NoSymbol,
 };
@@ -2702,6 +2704,21 @@ function AddIdentifierSymbol(scope : ASScope, statement : ASStatement, node : an
     return symbol;
 }
 
+function AddStringSymbol(scope : ASScope, statement: ASStatement, node : any) : ASSemanticSymbol
+{
+    if (!node)
+        return null;
+    let symbol = new ASSemanticSymbol;
+    symbol.type = ASSymbolType.StringSymbol;
+    symbol.start = node.start + statement.start_offset;
+    symbol.end = node.end + statement.start_offset;
+    symbol.symbol_name = null;
+    symbol.isWriteAccess = null;
+
+    scope.module.semanticSymbols.push(symbol);
+    return symbol;
+}
+
 function AddUnknownSymbol(scope : ASScope, statement: ASStatement, node : any, hasPotentialCompletions : boolean)
 {
     if (!node)
@@ -3963,6 +3980,7 @@ export function GetConstantNumberFromNode(node : any) : [boolean, number]
     return [false, 0.0];
 }
 
+// ^^^ symbol detection
 function DetectNodeSymbols(scope : ASScope, statement : ASStatement, node : any, parseContext : ASParseContext, symbol_type : typedb.DBAllowSymbol = typedb.DBAllowSymbol.Properties) : typedb.DBSymbol | typedb.DBType
 {
     if (!node)
@@ -4001,11 +4019,20 @@ function DetectNodeSymbols(scope : ASScope, statement : ASStatement, node : any,
             else
                 return typedb.GetTypeByName("float");
         break;
-        case node_types.ConstName: return typedb.GetTypeByName("FName"); break;
-        case node_types.ConstString: return typedb.GetTypeByName("FString"); break;
+        case node_types.ConstName: {
+            AddStringSymbol(scope, statement, node);
+            return typedb.GetTypeByName("FName");
+            break;
+        }
+        case node_types.ConstString: {
+            AddStringSymbol(scope, statement, node);
+            return typedb.GetTypeByName("FString");
+            break;
+        }
         case node_types.ConstNullptr: return typedb.GetTypeByName("UObject"); break;
         // Format string f"Blah {CODE}"
         case node_types.ConstFormatString:
+            AddStringSymbol(scope, statement, node);
             DetectFormatStringSymbols(scope, statement, node, parseContext);
             return typedb.GetTypeByName("FString");
         break;
