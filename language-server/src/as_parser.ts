@@ -1,5 +1,5 @@
 import { TextDocument, TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
-import { Range, Position, Location, MarkupContent, } from "vscode-languageserver";
+import { Range, Position, Location, integer } from "vscode-languageserver";
 
 import * as fs from 'fs';
 
@@ -410,6 +410,7 @@ export enum ASSymbolType
 
     StringSymbol,
     NumberSymbol,
+    KeywordSymbol,
 
     UnknownError,
     NoSymbol,
@@ -2735,6 +2736,18 @@ function AddNumberSymbol(scope : ASScope, statement: ASStatement, node : any) : 
     return symbol;
 }
 
+function AddKeywordSymbol(scope : ASScope, statement: ASStatement, start: integer, keyword: string) : ASSemanticSymbol {
+    let symbol = new ASSemanticSymbol;
+    symbol.type = ASSymbolType.KeywordSymbol;
+    symbol.start = statement.start_offset + start;
+    symbol.end = statement.start_offset + start + keyword.length;
+    symbol.symbol_name = null;
+    symbol.isWriteAccess = null;
+
+    scope.module.semanticSymbols.push(symbol);
+    return symbol;
+}
+
 function AddUnknownSymbol(scope : ASScope, statement: ASStatement, node : any, hasPotentialCompletions : boolean)
 {
     if (!node)
@@ -4015,7 +4028,11 @@ function DetectNodeSymbols(scope : ASScope, statement : ASStatement, node : any,
     switch (node.type)
     {
         // this and other constants
-        case node_types.This: return scope.getParentType(); break;
+        case node_types.This: {
+            AddKeywordSymbol(scope, statement, node.start, "this");
+            return scope.getParentType();
+            break;
+        }
         case node_types.ConstBool: return typedb.GetTypeByName("bool"); break;
         case node_types.ConstDouble:
             if (ScriptSettings.floatIsFloat64)
@@ -4619,8 +4636,14 @@ function DetectNodeSymbols(scope : ASScope, statement : ASStatement, node : any,
                 AddAccessSpecifierSymbol(scope, statement, node.access);
 
             // Add the symbol for the return type
-            if (node.returntype && node.returntype.value != 'void')
-                AddTypenameSymbol(scope, statement, node.returntype);
+            if (node.returntype) {
+                if (node.returntype.value != 'void') {
+                    AddTypenameSymbol(scope, statement, node.returntype);
+                }
+                else {
+                    AddKeywordSymbol(scope, statement, node.returntype.start, "void");
+                }
+            }
 
             // Add the function name
             if (node.name)
@@ -4969,6 +4992,14 @@ function DetectNodeSymbols(scope : ASScope, statement : ASStatement, node : any,
         case node_types.SwitchStatement:
         case node_types.CommaExpression:
         {
+            let kw = "return";
+            if (node.type === node_types.DefaultStatement) {
+                kw = "default";
+            }
+            if (node.type === node_types.SwitchStatement) {
+                kw = "switch";
+            }
+            AddKeywordSymbol(scope, statement, node.start, kw);
             // Detect in each subexpression
             for (let child of node.children)
                 DetectNodeSymbols(scope, statement, child, parseContext, typedb.DBAllowSymbol.Properties);
@@ -4983,6 +5014,24 @@ function DetectNodeSymbols(scope : ASScope, statement : ASStatement, node : any,
         case node_types.CaseStatement:
         case node_types.DefaultCaseStatement:
         {
+            let kw = "if";
+            if (node.type === node_types.ElseStatement) {
+                kw = "else";
+            }
+            if (node.type === node_types.ForLoop) {
+                kw = "for";
+            }
+            if (node.type === node_types.WhileLoop) {
+                kw = "while";
+            }
+            if (node.type === node_types.CaseStatement) {
+                kw = "case";
+            }
+            if (node.type === node_types.DefaultCaseStatement) {
+                kw = "default";
+            }
+            AddKeywordSymbol(scope, statement, node.start, kw);
+
             for (let i = 0, count = node.children.length-1; i < count; ++i)
                 DetectNodeSymbols(scope, statement, node.children[i], parseContext, typedb.DBAllowSymbol.Properties);
         }
@@ -4990,6 +5039,9 @@ function DetectNodeSymbols(scope : ASScope, statement : ASStatement, node : any,
         // For each loops add symbols for the typename and the variable name
         case node_types.ForEachLoop:
         {
+            // ^^^ posibly not the right keyword
+            AddKeywordSymbol(scope, statement, node.start, "for");
+
             // Add the declared loop variable
             let typenameSymbol = AddTypenameSymbol(scope, statement, node.children[0]);
             if (node.children[1])
@@ -5008,6 +5060,7 @@ function DetectNodeSymbols(scope : ASScope, statement : ASStatement, node : any,
         // Declarations for types should emit a type symbol
         case node_types.ClassDefinition:
         {
+            AddKeywordSymbol(scope, statement, node.start, "class");
             // Add the typename of the class itself
             AddIdentifierSymbol(scope, statement, node.name, ASSymbolType.Typename, null, node.name.value);
 
@@ -5036,17 +5089,20 @@ function DetectNodeSymbols(scope : ASScope, statement : ASStatement, node : any,
         break;
         case node_types.StructDefinition:
         {
+            AddKeywordSymbol(scope, statement, node.start, "struct");
             AddIdentifierSymbol(scope, statement, node.name, ASSymbolType.Typename, null, node.name.value);
         }
         break;
         case node_types.EnumDefinition:
         {
+            AddKeywordSymbol(scope, statement, node.start, "enum");
             AddIdentifierSymbol(scope, statement, node.name, ASSymbolType.Typename, null, node.name.value);
         }
         break;
         // Namespace definitions add a namespace symbol
         case node_types.NamespaceDefinition:
         {
+            AddKeywordSymbol(scope, statement, node.start, "namespace");
             let namespace = typedb.LookupNamespace(scope.getNamespace(), node.name.value);
             if (namespace)
             {

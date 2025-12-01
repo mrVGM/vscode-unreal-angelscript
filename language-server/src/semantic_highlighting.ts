@@ -11,7 +11,7 @@ export let SemanticTypeList : Array<string> = [
     "typename", "typename_actor", "typename_component", "typename_struct", "typename_event",
     "typename_delegate", "typename_primitive", "unimported_symbol", "access_specifier",
 
-    "string_literal", "number_literal",
+    "string_literal", "number_literal", "keyword",
 ];
 
 for (let i = 0, Count = SemanticTypeList.length; i < Count; ++i)
@@ -180,6 +180,9 @@ function BuildSymbols(asmodule : scriptfiles.ASModule, builder : SemanticTokensB
             break;
             case scriptfiles.ASSymbolType.NumberSymbol:
                 type = SemanticTypes.number_literal;
+            break;
+            case scriptfiles.ASSymbolType.KeywordSymbol:
+                type = SemanticTypes.keyword;
             break;
         }
 
