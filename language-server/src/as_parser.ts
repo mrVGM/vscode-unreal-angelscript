@@ -409,6 +409,7 @@ export enum ASSymbolType
     AccessSpecifier,
 
     StringSymbol,
+    NumberSymbol,
 
     UnknownError,
     NoSymbol,
@@ -2719,6 +2720,21 @@ function AddStringSymbol(scope : ASScope, statement: ASStatement, node : any) : 
     return symbol;
 }
 
+function AddNumberSymbol(scope : ASScope, statement: ASStatement, node : any) : ASSemanticSymbol
+{
+    if (!node)
+        return null;
+    let symbol = new ASSemanticSymbol;
+    symbol.type = ASSymbolType.NumberSymbol;
+    symbol.start = node.start + statement.start_offset;
+    symbol.end = node.end + statement.start_offset;
+    symbol.symbol_name = null;
+    symbol.isWriteAccess = null;
+
+    scope.module.semanticSymbols.push(symbol);
+    return symbol;
+}
+
 function AddUnknownSymbol(scope : ASScope, statement: ASStatement, node : any, hasPotentialCompletions : boolean)
 {
     if (!node)
@@ -4010,15 +4026,19 @@ function DetectNodeSymbols(scope : ASScope, statement : ASStatement, node : any,
         case node_types.ConstInteger:
         case node_types.ConstHexInteger:
         case node_types.ConstOctalInteger:
-        case node_types.ConstBinaryInteger:
+        case node_types.ConstBinaryInteger: {
+            AddNumberSymbol(scope, statement, node);
             return typedb.GetTypeByName("int");
-        break;
-        case node_types.ConstFloat:
+            break;
+        }
+        case node_types.ConstFloat: {
+            AddNumberSymbol(scope, statement, node);
             if (ScriptSettings.floatIsFloat64)
                 return typedb.GetTypeByName("float32");
             else
                 return typedb.GetTypeByName("float");
-        break;
+            break;
+        }
         case node_types.ConstName: {
             AddStringSymbol(scope, statement, node);
             return typedb.GetTypeByName("FName");
