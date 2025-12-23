@@ -53,6 +53,8 @@ export enum MessageType
 
     SetDataBreakpoints,
     ClearDataBreakpoints,
+
+    RunFunctionInUnreal,
 }
 
 export class Message
@@ -203,6 +205,17 @@ export function buildCreateBlueprint(className : string) : Buffer
 {
     let head = Buffer.alloc(5);
     head.writeUInt8(MessageType.CreateBlueprint, 4);
+
+    let parts = [head, writeString(className)];
+    let msg = Buffer.concat(parts);
+    msg.writeUInt32LE(msg.length - 4, 0);
+    return msg;
+}
+
+export function buildRunFunctionInUnreal(className : string) : Buffer
+{
+    let head = Buffer.alloc(5);
+    head.writeUInt8(MessageType.RunFunctionInUnreal, 4);
 
     let parts = [head, writeString(className)];
     let msg = Buffer.concat(parts);

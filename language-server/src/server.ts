@@ -23,7 +23,6 @@ import {
     InlayHint, InlayHintParams,
     InlineValue, InlineValueParams, StreamMessageReader, StreamMessageWriter,
 } from 'vscode-languageserver/node';
-import { TextDocument, TextDocumentContentChangeEvent } from 'vscode-languageserver-textdocument';
 
 import { Socket } from 'net';
 import { URI } from 'vscode-uri'
@@ -50,7 +49,7 @@ import * as glob from 'glob';
 
 import {
     Message, MessageType, readMessages, buildGoTo,
-    buildDisconnect, buildOpenAssets, buildCreateBlueprint
+    buildDisconnect, buildOpenAssets, buildCreateBlueprint, buildRunFunctionInUnreal
 } from './unreal-buffers';
 
 // Create a connection for the server. The connection uses Node's IPC as a transport
@@ -374,7 +373,7 @@ connection.onInitialize((_params): InitializeResult => {
                 resolveProvider: false
             },
             executeCommandProvider: {
-                commands: ["angelscript.openAssets", "angelscript.createBlueprint", "angelscript.editAsset"],
+                commands: ["angelscript.openAssets", "angelscript.createBlueprint", "angelscript.editAsset", "angelscript.run"],
             },
             codeActionProvider: {
                 resolveProvider: true,
@@ -850,6 +849,18 @@ connection.onExecuteCommand(function (params : ExecuteCommandParams)
                 unreal.write(buildCreateBlueprint(className));
             else
                 connection.window.showErrorMessage("Cannot create blueprint: not connected to unreal editor.");
+        }
+    }
+    else if (params.command == "angelscript.run")
+    {
+        if (params.arguments && params.arguments[0])
+        {
+            let className = params.arguments[0] as string;
+            if (unreal) {
+                unreal.write(buildRunFunctionInUnreal(className));
+            }
+            else
+                connection.window.showErrorMessage("Cannot run function: not connected to unreal editor.");
         }
     }
 });

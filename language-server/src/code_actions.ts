@@ -99,7 +99,53 @@ export function GetCodeActions(asmodule : scriptfiles.ASModule, range : Range, d
         AddGenerateParamsStructActions(context);
     }
 
+    AddCallEditorFunctionActions(context);
+
     return context.actions;
+}
+
+function AddCallEditorFunctionActions(context : CodeActionContext)
+{
+    if (!context.scope)
+        return;
+
+    let typeOfScope = context.scope.getParentType();
+    if (!typeOfScope || !typeOfScope.supertype)
+        return;
+
+    let validScope = false;
+    if (context.scope.scopetype == scriptfiles.ASScopeType.Class)
+    {
+        validScope = true;
+    }
+    // If we're inside the actual function declaration that's fine too
+    else if (context.scope.scopetype == scriptfiles.ASScopeType.Function)
+    {
+        if (context.statement && context.statement.ast && context.statement.ast.type == scriptfiles.node_types.FunctionDecl)
+        {
+            validScope = true;
+        }
+    }
+    if (!validScope)
+        return;
+
+
+    if (context.scope.dbtype.inheritsFrom("UEditorUtilityObject")) {
+
+        let name = context.scope.dbtype.name;
+        let title = "Run EUB";
+
+        context.actions.push(<CodeAction> {
+            kind: CodeActionKind.Empty,
+            title: title,
+            source: "angelscript",
+            command: {
+                title: title,
+                command: "angelscript.run",
+                arguments: [name],
+            }
+        });
+    }
 }
 
 export function ResolveCodeAction(asmodule : scriptfiles.ASModule, action : CodeAction, data : any) : CodeAction
