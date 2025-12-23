@@ -971,7 +971,10 @@ export function WorkspaceSymbols( query : string ) : WorkspaceSymbol[]
                 name: qualifiedTypename,
             };
 
-            symbol.location = {uri: asmodule.displayUri};
+            symbol.location = {
+                uri: asmodule.displayUri,
+                range: { start: asmodule.getPosition(dbtype.moduleOffset), end: asmodule.getPosition(dbtype.moduleOffsetEnd) },
+            };
 
             if (dbtype.isEnum)
                 symbol.kind = SymbolKind.Enum;
@@ -1008,14 +1011,17 @@ export function WorkspaceSymbols( query : string ) : WorkspaceSymbol[]
                         symbol.name = memberPrefix+dbfunc.name+"()";
 
                     symbol.data = [dbtype.name, dbfunc.name, dbfunc.id];
-                    symbol.location = {uri: asmodule.displayUri};
+                    symbol.location = {
+                        uri: asmodule.displayUri,
+                        range: { start: asmodule.getPosition(dbfunc.moduleOffset), end: asmodule.getPosition(dbfunc.moduleOffsetEnd) },
+                    };
 
                     if (dbfunc.isBlueprintEvent)
                         symbol.kind = SymbolKind.Event;
                     else
                         symbol.kind = SymbolKind.Method;
                     symbol.containerName = displayTypename;
-
+                    
                     symbols.push(symbol);
                 }
                 else if (sym instanceof typedb.DBProperty)
@@ -1030,11 +1036,13 @@ export function WorkspaceSymbols( query : string ) : WorkspaceSymbol[]
                     let symbol = <WorkspaceSymbol> {};
                     symbol.name = memberPrefix+dbprop.name;
                     symbol.data = [dbtype.name, dbprop.name];
-                    symbol.location = {uri: asmodule.displayUri};
+                    symbol.location = {
+                        uri: asmodule.displayUri,
+                        range: { start: asmodule.getPosition(dbprop.moduleOffset), end: asmodule.getPosition(dbprop.moduleOffsetEnd) },
+                    };
 
                     symbol.kind = SymbolKind.Field;
                     symbol.containerName = displayTypename;
-
                     symbols.push(symbol);
                 }
             }, false);
@@ -1046,6 +1054,7 @@ export function WorkspaceSymbols( query : string ) : WorkspaceSymbol[]
         let displayName = namespace.name;
         let qualifiedName = namespace.getQualifiedNamespace();
         let typeIsMatching = false;
+
 
         if (!namespace.isRootNamespace())
         {
@@ -1064,7 +1073,10 @@ export function WorkspaceSymbols( query : string ) : WorkspaceSymbol[]
                     name: qualifiedName,
                 };
 
-                symbol.location = {uri: asmodule.displayUri};
+                symbol.location = {
+                    uri: asmodule.displayUri,
+                    range: { start: asmodule.getPosition(scriptDecl.declaredOffset), end: asmodule.getPosition(scriptDecl.declaredOffsetEnd) },
+                };
                 symbol.kind = SymbolKind.Namespace;
                 symbol.data = namespace.getQualifiedNamespace();
 
@@ -1105,7 +1117,10 @@ export function WorkspaceSymbols( query : string ) : WorkspaceSymbol[]
                             symbol.name = memberPrefix+dbfunc.name+"()";
 
                         symbol.data = [namespace.getQualifiedNamespace(), dbfunc.name, dbfunc.id];
-                        symbol.location = {uri: symbolModule.displayUri};
+                        symbol.location = {
+                            uri: symbolModule.displayUri,
+                            range: { start: symbolModule.getPosition(dbsym.moduleOffset), end: symbolModule.getPosition(dbsym.moduleOffsetEnd) },
+                        };
 
                         if (dbfunc.isBlueprintEvent)
                             symbol.kind = SymbolKind.Event;
@@ -1132,7 +1147,10 @@ export function WorkspaceSymbols( query : string ) : WorkspaceSymbol[]
                         let symbol = <WorkspaceSymbol> {};
                         symbol.name = memberPrefix+dbprop.name;
                         symbol.data = [namespace.getQualifiedNamespace(), dbprop.name];
-                        symbol.location = {uri: symbolModule.displayUri};
+                        symbol.location = {
+                            uri: symbolModule.displayUri,
+                            range: { start: symbolModule.getPosition(dbprop.moduleOffset), end: symbolModule.getPosition(dbprop.moduleOffsetEnd) },
+                        };
 
                         symbol.kind = SymbolKind.Field;
                         symbol.containerName = qualifiedName;
