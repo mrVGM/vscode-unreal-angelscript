@@ -52,8 +52,18 @@ import {
     buildDisconnect, buildOpenAssets, buildCreateBlueprint, buildRunFunctionInUnreal
 } from './unreal-buffers';
 
+let useStdIO = process.argv.find((arg: string) => {
+    return arg == "--stdio";
+});
+
 // Create a connection for the server. The connection uses Node's IPC as a transport
-let connection: Connection = createConnection(new StreamMessageReader(process.stdin), new StreamMessageWriter(process.stdout));
+let connection: Connection;
+if (useStdIO) {
+    connection = createConnection(new StreamMessageReader(process.stdin), new StreamMessageWriter(process.stdout));
+}
+else {
+    connection = createConnection(new IPCMessageReader(process), new IPCMessageWriter(process));
+}
 
 // Create a connection to unreal
 let unreal : Socket;
