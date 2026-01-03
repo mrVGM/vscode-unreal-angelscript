@@ -74,6 +74,9 @@ export function GetCodeActions(asmodule : scriptfiles.ASModule, range : Range, d
     // Actions for method override snippets
     AddCreateBlueprintActions(context);
 
+    // Action for running Editor Function
+    AddCallEditorFunctionAction(context);
+
     // Actions for method override snippets
     AddMethodOverrideSnippets(context);
 
@@ -99,12 +102,10 @@ export function GetCodeActions(asmodule : scriptfiles.ASModule, range : Range, d
         AddGenerateParamsStructActions(context);
     }
 
-    AddCallEditorFunctionActions(context);
-
     return context.actions;
 }
 
-function AddCallEditorFunctionActions(context : CodeActionContext)
+function AddCallEditorFunctionAction(context : CodeActionContext)
 {
     if (!context.scope)
         return;
@@ -118,17 +119,8 @@ function AddCallEditorFunctionActions(context : CodeActionContext)
     {
         validScope = true;
     }
-    // If we're inside the actual function declaration that's fine too
-    else if (context.scope.scopetype == scriptfiles.ASScopeType.Function)
-    {
-        if (context.statement && context.statement.ast && context.statement.ast.type == scriptfiles.node_types.FunctionDecl)
-        {
-            validScope = true;
-        }
-    }
     if (!validScope)
         return;
-
 
     if (context.scope.dbtype.inheritsFrom("UEditorUtilityObject")) {
 
